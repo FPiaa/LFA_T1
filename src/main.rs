@@ -1,4 +1,12 @@
-use std::{collections::HashSet, str::FromStr};
+use clap::Parser;
+use std::process;
+use std::{
+    collections::HashSet,
+    fs::File,
+    io::{self, BufReader, Read},
+    path::Path,
+    str::FromStr,
+};
 
 #[derive(Hash, Debug, PartialEq, Eq, Clone, Copy)]
 enum Símbolo {
@@ -322,7 +330,7 @@ impl<'a> Labirinto<'a> {
         }
     }
 
-    fn iter(&'a self, palavra: &'a [&str]) -> LabirintoIter<'a> {
+    fn iter(&'a self, palavra: &'a [String]) -> LabirintoIter<'a> {
         LabirintoIter {
             palavra,
             estado_atual: self.inicial,
@@ -334,7 +342,7 @@ impl<'a> Labirinto<'a> {
 }
 
 struct LabirintoIter<'a> {
-    palavra: &'a [&'a str],
+    palavra: &'a [String],
     estado_atual: Estado,
     transição: &'a FunçãoTransição,
     alfabeto: &'a HashSet<Símbolo>,
@@ -370,12 +378,41 @@ impl<'a> Iterator for LabirintoIter<'a> {
     }
 }
 
+#[derive(Parser, Debug)]
+struct Args {
+    #[clap(value_parser)]
+    filepath: Option<String>,
+}
+
+fn get_palavra(filepath: String) -> Vec<String> {
+    let file = File::open(filepath);
+    let mut file = match file {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Erro para abrir o arquivo {:?}", e);
+            process::exit(e.raw_os_error().unwrap_or(-1));
+        }
+    };
+    let mut palavra = String::new();
+    let _ = file.read_to_string(&mut palavra);
+    palavra
+        .split(',')
+        .map(|simbolo| simbolo.trim().to_owned())
+        .collect()
+}
+
 fn main() {
     let máquina = Labirinto::new();
-    let palavra = [
-        "esquerda", "baixo", "pegar", "direita", "a", "b", "c", "c", "c", "c", "d", "d", "b", "e",
-        "e", "b", "b", "b", "e", "e",
-    ];
+    let args = Args::parse();
+
+    let palavra = if args.filepath.is_some() {
+        get_palavra(args.filepath.unwrap())
+    } else {
+        ["c", "c", "c", "c", "d", "d", "d", "d"]
+            .iter()
+            .map(|&c| c.to_owned())
+            .collect()
+    };
     println!("Estado inicial => {:?}", máquina.inicial);
 
     if let Some(last) = máquina.iter(&palavra).last() {

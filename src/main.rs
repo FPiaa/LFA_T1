@@ -1,7 +1,7 @@
 use std::{collections::HashSet, str::FromStr};
 
 #[derive(Hash, Debug, PartialEq, Eq, Clone, Copy)]
-enum Simbolo {
+enum Símbolo {
     Cima,
     Baixo,
     Esquerda,
@@ -9,7 +9,7 @@ enum Simbolo {
     Pegar,
 }
 
-impl FromStr for Simbolo {
+impl FromStr for Símbolo {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -60,12 +60,12 @@ enum Estado {
     H4,
 }
 
-const ALFABETO: [Simbolo; 5] = [
-    Simbolo::Cima,
-    Simbolo::Baixo,
-    Simbolo::Direita,
-    Simbolo::Esquerda,
-    Simbolo::Pegar,
+const ALFABETO: [Símbolo; 5] = [
+    Símbolo::Cima,
+    Símbolo::Baixo,
+    Símbolo::Direita,
+    Símbolo::Esquerda,
+    Símbolo::Pegar,
 ];
 
 const ESTADOS: [Estado; 32] = [
@@ -103,19 +103,19 @@ const ESTADOS: [Estado; 32] = [
     Estado::H4,
 ];
 
-type FunçãoTransição = dyn Fn(Estado, Simbolo) -> Option<Estado>;
+type FunçãoTransição = dyn Fn(Estado, Símbolo) -> Option<Estado>;
 
 struct Labirinto<'a> {
-    alfabeto: HashSet<Simbolo>,
+    alfabeto: HashSet<Símbolo>,
     estados: HashSet<Estado>,
     transição: &'a FunçãoTransição,
     inicial: Estado,
     finais: HashSet<Estado>,
 }
 
-fn transição(estado_atual: Estado, simbolo: Simbolo) -> Option<Estado> {
+fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
     use Estado::*;
-    use Simbolo::*;
+    use Símbolo::*;
     match (estado_atual, simbolo) {
         (A1, Cima) => Some(A2),
         (A1, Direita) => Some(B1),
@@ -129,13 +129,11 @@ fn transição(estado_atual: Estado, simbolo: Simbolo) -> Option<Estado> {
         (A2, Baixo) => Some(A1),
         (A2, Pegar) => Some(A2),
 
-
         (A3, Cima) => Some(A4),
         (A3, Direita) => Some(B3),
         (A3, Esquerda) => Some(A3),
         (A3, Baixo) => Some(A2),
         (A3, Pegar) => Some(A3),
-
 
         (A4, Cima) => Some(A4),
         (A4, Direita) => Some(B4),
@@ -166,7 +164,7 @@ fn transição(estado_atual: Estado, simbolo: Simbolo) -> Option<Estado> {
         (B4, Esquerda) => Some(A4),
         (B4, Baixo) => Some(B3),
         (B4, Pegar) => Some(B3),
-        
+
         (C1, Cima) => Some(C2),
         (C1, Direita) => Some(D1),
         (C1, Esquerda) => Some(B1),
@@ -339,44 +337,53 @@ struct LabirintoIter<'a> {
     palavra: &'a [&'a str],
     estado_atual: Estado,
     transição: &'a FunçãoTransição,
-    alfabeto: &'a HashSet<Simbolo>,
-    estados: &'a HashSet<Estado>
+    alfabeto: &'a HashSet<Símbolo>,
+    estados: &'a HashSet<Estado>,
 }
 
 impl<'a> Iterator for LabirintoIter<'a> {
     type Item = Estado;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let simbolo = self.palavra.first()?;
-        let simbolo = Simbolo::from_str(simbolo).ok()?;
-        if !self.alfabeto.contains(&simbolo) {
-            panic!("Simbolo do alfabeto é inválido")
-        }
+        let simbolo_str = self.palavra.first()?;
+        let simbolo = Símbolo::from_str(simbolo_str);
+
+        let simbolo = match simbolo {
+            Ok(s) => s,
+            Err(_) => {
+                println!("O símbolo \"{simbolo_str}\" não é reconhecido pelo alfabeto");
+                return None;
+            }
+        };
+
+        assert!(self.alfabeto.contains(&simbolo));
+
         self.palavra = &self.palavra[1..];
         let proximo = (self.transição)(self.estado_atual, simbolo)?;
-        if !self.estados.contains(&proximo) {
-            panic!("A função de transição gerou um estado inválido")
-        }
+
+        assert!(self.estados.contains(&proximo));
 
         println!("δ({:?}, {simbolo:?}) => {proximo:?}", self.estado_atual);
+
         self.estado_atual = proximo;
         Some(self.estado_atual)
     }
 }
 
 fn main() {
-    let machine = Labirinto::new();
-    let palavra = ["esquerda", "baixo", "pegar", "direita", "esquerda", "b", "c","c","c","c","d","d","b","e","e","b","b","b","e","e"];
-    println!("Estado inicial => {:?}", machine.inicial);
+    let máquina = Labirinto::new();
+    let palavra = [
+        "esquerda", "baixo", "pegar", "direita", "a", "b", "c", "c", "c", "c", "d", "d", "b", "e",
+        "e", "b", "b", "b", "e", "e",
+    ];
+    println!("Estado inicial => {:?}", máquina.inicial);
 
-    if let Some(last) = machine.iter(&palavra).last() {
-        if machine.finais.contains(&last) {
+    if let Some(last) = máquina.iter(&palavra).last() {
+        if máquina.finais.contains(&last) {
             println!("Parabéns você achou o tesouro e saiu da caverna!!! (Palavra aceita)");
-        }
-        else if last == machine.inicial{
+        } else if last == máquina.inicial {
             println!("A sua incursão e você saiu da caverna sem o tesouro, tente novamente!!! (Palavra Rejeitada)");
-        }
-        else {
+        } else {
             println!("A sua incursão terminou e você ficou preso na caverna!! (Palavra Rejeitada)");
         }
     } else {

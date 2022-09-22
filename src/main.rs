@@ -1,38 +1,33 @@
-use std::io::Read;
 use clap::Parser;
+use std::io::Read;
 use std::process;
-use std::{
-    collections::HashSet,
-    fs::File,
-    str::FromStr,
-};
+use std::{collections::HashSet, fs::File, str::FromStr};
 
-#[derive(Hash, Debug, PartialEq, Eq, Clone, Copy)]
-enum Símbolo {
+macro_rules! make_enum {
+    (
+        $name:ident $array:ident $tamanho:literal{
+            $( $variant:ident, )*
+        }
+    ) => {
+        #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+        pub enum $name {
+            $( $variant, )*
+        }
+        const $array: [$name; $tamanho] = [
+            $( $name::$variant, )*
+        ];
+    }
+}
+
+make_enum!(Símbolo ALFABETO 5{
     Cima,
     Baixo,
     Esquerda,
     Direita,
     Pegar,
-}
+});
 
-impl FromStr for Símbolo {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_ref() {
-            "cima" | "c" => Ok(Self::Cima),
-            "baixo" | "b" => Ok(Self::Baixo),
-            "esquerda" | "e" => Ok(Self::Esquerda),
-            "direita" | "d" => Ok(Self::Direita),
-            "pegar" | "p" => Ok(Self::Pegar),
-            _ => Err(()),
-        }
-    }
-}
-
-#[derive(Hash, Debug, PartialEq, Eq, Clone, Copy)]
-enum Estado {
+make_enum!(Estado ESTADOS 32 {
     A1,
     A2,
     A3,
@@ -65,50 +60,22 @@ enum Estado {
     H2,
     H3,
     H4,
+});
+
+impl FromStr for Símbolo {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_ref() {
+            "cima" | "c" => Ok(Self::Cima),
+            "baixo" | "b" => Ok(Self::Baixo),
+            "esquerda" | "e" => Ok(Self::Esquerda),
+            "direita" | "d" => Ok(Self::Direita),
+            "pegar" | "p" => Ok(Self::Pegar),
+            _ => Err(()),
+        }
+    }
 }
-
-const ALFABETO: [Símbolo; 5] = [
-    Símbolo::Cima,
-    Símbolo::Baixo,
-    Símbolo::Direita,
-    Símbolo::Esquerda,
-    Símbolo::Pegar,
-];
-
-const ESTADOS: [Estado; 32] = [
-    Estado::A1,
-    Estado::A2,
-    Estado::A3,
-    Estado::A4,
-    Estado::B1,
-    Estado::B2,
-    Estado::B3,
-    Estado::B4,
-    Estado::C1,
-    Estado::C2,
-    Estado::C3,
-    Estado::C4,
-    Estado::D1,
-    Estado::D2,
-    Estado::D3,
-    Estado::D4,
-    Estado::E1,
-    Estado::E2,
-    Estado::E3,
-    Estado::E4,
-    Estado::F1,
-    Estado::F2,
-    Estado::F3,
-    Estado::F4,
-    Estado::G1,
-    Estado::G2,
-    Estado::G3,
-    Estado::G4,
-    Estado::H1,
-    Estado::H2,
-    Estado::H3,
-    Estado::H4,
-];
 
 type FunçãoTransição = dyn Fn(Estado, Símbolo) -> Option<Estado>;
 
@@ -417,7 +384,7 @@ fn get_palavra(filepath: String) -> Vec<String> {
     let mut palavra = String::new();
     let _ = file.read_to_string(&mut palavra);
     palavra
-        .split(|c: char| c.is_whitespace() || c == ',' )
+        .split(|c: char| c.is_whitespace() || c == ',')
         .filter(|c| c != &"")
         .map(|simbolo| simbolo.trim().to_owned())
         .collect()
@@ -454,14 +421,13 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use crate::{Labirinto, Estado};
+    use crate::{Estado, Labirinto};
 
     impl<'a> Labirinto<'a> {
-        
         fn new_inicial(inicial: Estado) -> Self {
             Self {
                 inicial,
-                .. Self::new()
+                ..Self::new()
             }
         }
     }
@@ -606,7 +572,7 @@ mod tests {
         let palavra = "edbeecpbbe";
         let inicial = Estado::D3;
         should_reject(palavra, inicial);
-        
+
         let palavra = "bcebpbbe";
         let inicial = Estado::C4;
         should_reject(palavra, inicial);
@@ -617,12 +583,12 @@ mod tests {
         let palavra = "cbbeecpbbe";
         let inicial = Estado::D3;
         should_reject(palavra, inicial);
-        
+
         let palavra = "deebpbbe";
         let inicial = Estado::C4;
         should_reject(palavra, inicial);
     }
-    
+
     #[test]
     fn rejeita_buraco_g1() {
         let palavra = "dee";
@@ -651,7 +617,7 @@ mod tests {
         let palavra = "edbeeeb";
         let inicial = Estado::H3;
         should_reject(palavra, inicial);
-        
+
         let palavra = "bcebbbe";
         let inicial = Estado::G4;
         should_reject(palavra, inicial);
@@ -662,10 +628,9 @@ mod tests {
         let palavra = "cbbeeeb";
         let inicial = Estado::H3;
         should_reject(palavra, inicial);
-        
+
         let palavra = "deebbbe";
         let inicial = Estado::G4;
         should_reject(palavra, inicial);
     }
-
 }

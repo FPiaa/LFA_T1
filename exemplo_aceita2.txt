@@ -1,0 +1,1 @@
+cima, direita, cima, pegar, baixo, baixo, esquerda

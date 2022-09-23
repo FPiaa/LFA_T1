@@ -1,7 +1,11 @@
-use clap::Parser;
 use std::io::Read;
+use clap::Parser;
 use std::process;
-use std::{collections::HashSet, fs::File, str::FromStr};
+use std::{
+    collections::HashSet,
+    fs::File,
+    str::FromStr,
+};
 
 macro_rules! make_enum {
     (
@@ -19,48 +23,35 @@ macro_rules! make_enum {
     }
 }
 
-make_enum!(Símbolo ALFABETO 5{
+
+make_enum!(Símbolo ALFABETO 6{
     Cima,
     Baixo,
     Esquerda,
     Direita,
     Pegar,
+    Atirar,
 });
 
-make_enum!(Estado ESTADOS 32 {
-    A1,
-    A2,
-    A3,
-    A4,
-    B1,
-    B2,
-    B3,
-    B4,
-    C1,
-    C2,
-    C3,
-    C4,
-    D1,
-    D2,
-    D3,
-    D4,
-    E1,
-    E2,
-    E3,
-    E4,
-    F1,
-    F2,
-    F3,
-    F4,
-    G1,
-    G2,
-    G3,
-    G4,
-    H1,
-    H2,
-    H3,
-    H4,
+#[rustfmt::skip]
+make_enum!(Estado ESTADOS 36 {
+    A11, A12, A13,
+    A21, A22, A23,
+    A31, A32, A33,
+    
+    B11, B12, B13,
+    B21, B22, B23,
+    B31, B32, B33,
+
+    C11, C12, C13,
+    C21, C22, C23,
+    C31, C32, C33,
+    
+    D11, D12, D13,
+    D21, D22, D23,
+    D31, D32, D33,
 });
+
 
 impl FromStr for Símbolo {
     type Err = ();
@@ -72,6 +63,7 @@ impl FromStr for Símbolo {
             "esquerda" | "e" => Ok(Self::Esquerda),
             "direita" | "d" => Ok(Self::Direita),
             "pegar" | "p" => Ok(Self::Pegar),
+            "atirar" | "a" => Ok(Self::Atirar),
             _ => Err(()),
         }
     }
@@ -90,212 +82,166 @@ struct Labirinto<'a> {
 fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
     use Estado::*;
     use Símbolo::*;
-
-    // estados A* -> E* depois de pegar o tesouro
-    // estados B* -> F* depois de pegar o tesouro
-    // estados C* -> G* depois de pegar o tesouro
-    // estados D* -> H* depois de pegar o tesouro
-
-    //   a b c d
-    // 1
-    // 2
-    // 3
-    // 4
-    //   e f g h
+    // A* -> wumpus vivo e tesouro não pego
+    // B* -> wumpus vivo e tesouro pego
+    // C* -> wumpus morto e tesouro não pego
+    // D* -> wumpus morto e tesouro pego
+    // buraco  32  wumpus
+    // 21  tesouro  23
+    // 11  12       buraco
 
     match (estado_atual, simbolo) {
-        (A1, Cima) => Some(A2),
-        (A1, Direita) => Some(B1),
-        (A1, Esquerda) => Some(A1),
-        (A1, Baixo) => Some(A1),
-        (A1, Pegar) => Some(A1),
+        (A11, Cima) => Some(A21),
+        (A11, Direita) => Some(A12),
+        (A11, _) => Some(A11),
 
-        (A2, Cima) => Some(A3),
-        (A2, Direita) => Some(B2),
-        (A2, Esquerda) => Some(A2),
-        (A2, Baixo) => Some(A1),
-        (A2, Pegar) => Some(A2),
+        (A12, Cima) => Some(A22),
+        (A12, Direita) => Some(A13),
+        (A12, Esquerda) => Some(A11),
+        (A12, _) => Some(A12), 
 
-        (A3, Cima) => None,
-        (A3, Direita) => None,
-        (A3, Esquerda) => None,
-        (A3, Baixo) => None,
-        (A3, Pegar) => None,
+        (A13, _) => None,
 
-        (A4, Cima) => Some(A4),
-        (A4, Direita) => Some(B4),
-        (A4, Esquerda) => Some(A4),
-        (A4, Baixo) => Some(A3),
-        (A4, Pegar) => Some(A4),
+        (A21, Cima) => Some(A31),
+        (A21, Direita) => Some(A22),
+        (A21, Baixo) => Some(A11),
+        (A21, _) => Some(A21),
 
-        (B1, Cima) => Some(B2),
-        (B1, Direita) => Some(C1),
-        (B1, Esquerda) => Some(A1),
-        (B1, Baixo) => Some(B1),
-        (B1, Pegar) => Some(B1),
+        (A22, Cima) => Some(A32),
+        (A22, Direita) => Some(A23),
+        (A22, Esquerda) => Some(A21),
+        (A22, Baixo) => Some(A12),
+        (A22, Pegar) => Some(B22),
+        (A22, _) => Some(A22),
 
-        (B2, Cima) => Some(B3),
-        (B2, Direita) => Some(C2),
-        (B2, Esquerda) => Some(A2),
-        (B2, Baixo) => Some(B1),
-        (B2, Pegar) => Some(B2),
+        (A23, Cima) => Some(A33),
+        (A23, Esquerda) => Some(A22),
+        (A23, Baixo) => Some(A13),
+        (A23, _) => Some(A23),
 
-        (B3, Cima) => Some(B4),
-        (B3, Direita) => Some(C3),
-        (B3, Esquerda) => Some(A3),
-        (B3, Baixo) => Some(B2),
-        (B3, Pegar) => Some(F3),
+        (A31, _) => None,
 
-        (B4, Cima) => Some(B4),
-        (B4, Direita) => Some(C4),
-        (B4, Esquerda) => Some(A4),
-        (B4, Baixo) => Some(B3),
-        (B4, Pegar) => Some(B3),
+        (A32, Direita) => Some(A33),
+        (A32, Esquerda) => Some(A31),
+        (A32, Baixo) => Some(A22),
+        (A32, _) => Some(A32),
 
-        (C1, Cima) => None,
-        (C1, Direita) => None,
-        (C1, Esquerda) => None,
-        (C1, Baixo) => None,
-        (C1, Pegar) => None,
+        (A33, Atirar) => Some(C33),
+        (A33, _) => Some(A33),
 
-        (C2, Cima) => Some(C3),
-        (C2, Direita) => Some(D2),
-        (C2, Esquerda) => Some(B2),
-        (C2, Baixo) => Some(C1),
-        (C2, Pegar) => Some(C2),
+        (B11, Cima) => Some(B21),
+        (B11, Direita) => Some(B12),
+        (B11, _) => Some(B11),
 
-        (C3, Cima) => None,
-        (C3, Direita) => None,
-        (C3, Esquerda) => None,
-        (C3, Baixo) => None,
-        (C3, Pegar) => None,
+        (B12, Cima) => Some(B22),
+        (B12, Direita) => Some(B13),
+        (B12, Esquerda) => Some(B11),
+        (B12, _) => Some(B12), 
 
-        (C4, Cima) => Some(C4),
-        (C4, Direita) => Some(D4),
-        (C4, Esquerda) => Some(B4),
-        (C4, Baixo) => Some(C3),
-        (C4, Pegar) => Some(C4),
+        (B13, _) => None,
 
-        (D1, Cima) => Some(D2),
-        (D1, Direita) => Some(D1),
-        (D1, Esquerda) => Some(C1),
-        (D1, Baixo) => Some(D1),
-        (D1, Pegar) => Some(D1),
+        (B21, Cima) => Some(B31),
+        (B21, Direita) => Some(B22),
+        (B21, Baixo) => Some(B11),
+        (B21, _) => Some(B21),
 
-        (D2, Cima) => Some(D3),
-        (D2, Direita) => Some(D2),
-        (D2, Esquerda) => Some(C2),
-        (D2, Baixo) => Some(D1),
-        (D2, Pegar) => Some(D2),
+        (B22, Cima) => Some(B32),
+        (B22, Direita) => Some(B23),
+        (B22, Esquerda) => Some(B21),
+        (B22, Baixo) => Some(B12),
+        (B22, _) => Some(B22),
 
-        (D3, Cima) => Some(D4),
-        (D3, Direita) => Some(D3),
-        (D3, Esquerda) => Some(C3),
-        (D3, Baixo) => Some(D2),
-        (D3, Pegar) => Some(D3),
+        (B23, Cima) => Some(B33),
+        (B23, Esquerda) => Some(B22),
+        (B23, Baixo) => Some(B13),
+        (B23, _) => Some(B23),
 
-        (D4, Cima) => None,
-        (D4, Direita) => None,
-        (D4, Esquerda) => None,
-        (D4, Baixo) => None,
-        (D4, Pegar) => None,
+        (B31, _) => None,
 
-        (E1, Cima) => Some(E2),
-        (E1, Direita) => Some(F1),
-        (E1, Esquerda) => Some(E1),
-        (E1, Baixo) => Some(E1),
-        (E1, Pegar) => Some(E1),
+        (B32, Direita) => Some(B33),
+        (B32, Esquerda) => Some(B31),
+        (B32, Baixo) => Some(B22),
+        (B32, _) => Some(B32),
 
-        (E2, Cima) => Some(E3),
-        (E2, Direita) => Some(F2),
-        (E2, Esquerda) => Some(E2),
-        (E2, Baixo) => Some(E1),
-        (E2, Pegar) => Some(E2),
+        (B33, Atirar) => Some(D33),
+        (B33, _) => Some(B33),
 
-        // Wumpus te pegou na volta
-        (E3, Cima) => None,
-        (E3, Direita) => None,
-        (E3, Esquerda) => None,
-        (E3, Baixo) => None,
-        (E3, Pegar) => None,
+        (C11, Cima) => Some(C21),
+        (C11, Direita) => Some(C12),
+        (C11, _) => Some(C11),
 
-        (E4, Cima) => Some(E4),
-        (E4, Direita) => Some(F4),
-        (E4, Esquerda) => Some(E4),
-        (E4, Baixo) => Some(E3),
-        (E4, Pegar) => Some(E4),
+        (C12, Cima) => Some(C22),
+        (C12, Direita) => Some(C13),
+        (C12, Esquerda) => Some(C11),
+        (C12, _) => Some(C12), 
 
-        (F1, Cima) => Some(F2),
-        (F1, Direita) => Some(G1),
-        (F1, Esquerda) => Some(E1),
-        (F1, Baixo) => Some(F1),
-        (F1, Pegar) => Some(F1),
+        (C13, _) => None,
 
-        (F2, Cima) => Some(F3),
-        (F2, Direita) => Some(G2),
-        (F2, Esquerda) => Some(E2),
-        (F2, Baixo) => Some(F1),
-        (F2, Pegar) => Some(F2),
+        (C21, Cima) => Some(C31),
+        (C21, Direita) => Some(C22),
+        (C21, Baixo) => Some(C11),
+        (C21, _) => Some(C21),
 
-        (F3, Cima) => Some(F4),
-        (F3, Direita) => Some(G3),
-        (F3, Esquerda) => Some(E3),
-        (F3, Baixo) => Some(F2),
-        (F3, Pegar) => Some(F3),
+        (C22, Cima) => Some(C32),
+        (C22, Direita) => Some(C23),
+        (C22, Esquerda) => Some(C21),
+        (C22, Baixo) => Some(C12),
+        (C22, Pegar) => Some(D22),
+        (C22, _) => Some(C22),
 
-        (F4, Cima) => Some(F4),
-        (F4, Direita) => Some(G4),
-        (F4, Esquerda) => Some(E4),
-        (F4, Baixo) => Some(F3),
-        (F4, Pegar) => Some(F4),
+        (C23, Cima) => Some(C33),
+        (C23, Esquerda) => Some(C22),
+        (C23, Baixo) => Some(C13),
+        (C23, _) => Some(C23),
 
-        (G1, Cima) => None,
-        (G1, Direita) => None,
-        (G1, Esquerda) => None,
-        (G1, Baixo) => None,
-        (G1, Pegar) => None,
+        (C31, _) => None,
 
-        (G2, Cima) => Some(G3),
-        (G2, Direita) => Some(H2),
-        (G2, Esquerda) => Some(F2),
-        (G2, Baixo) => Some(G1),
-        (G2, Pegar) => Some(G2),
+        (C32, Direita) => Some(C33),
+        (C32, Esquerda) => Some(C31),
+        (C32, Baixo) => Some(C22),
+        (C32, _) => Some(C32),
 
-        (G3, Cima) => None,
-        (G3, Direita) => None,
-        (G3, Esquerda) => None,
-        (G3, Baixo) => None,
-        (G3, Pegar) => None,
+        (C33, Esquerda) => Some(C32),
+        (C33, Baixo) => Some(C23),
+        (C33, _) => Some(C33),
+        
+        (D11, Cima) => Some(D21),
+        (D11, Direita) => Some(D12),
+        (D11, _) => Some(D11),
 
-        (G4, Cima) => Some(G4),
-        (G4, Direita) => Some(H4),
-        (G4, Esquerda) => Some(F4),
-        (G4, Baixo) => Some(G3),
-        (G4, Pegar) => Some(G4),
+        (D12, Cima) => Some(D22),
+        (D12, Direita) => Some(D13),
+        (D12, Esquerda) => Some(D11),
+        (D12, _) => Some(D12), 
 
-        (H1, Cima) => Some(H2),
-        (H1, Direita) => Some(H1),
-        (H1, Esquerda) => Some(G1),
-        (H1, Baixo) => Some(H1),
-        (H1, Pegar) => Some(H1),
+        (D13, _) => None,
 
-        (H2, Cima) => Some(H3),
-        (H2, Direita) => Some(H2),
-        (H2, Esquerda) => Some(G2),
-        (H2, Baixo) => Some(H1),
-        (H2, Pegar) => Some(H2),
+        (D21, Cima) => Some(D31),
+        (D21, Direita) => Some(D22),
+        (D21, Baixo) => Some(D11),
+        (D21, _) => Some(D21),
 
-        (H3, Cima) => Some(H4),
-        (H3, Direita) => Some(H3),
-        (H3, Esquerda) => Some(G3),
-        (H3, Baixo) => Some(H2),
-        (H3, Pegar) => Some(H3),
+        (D22, Cima) => Some(D32),
+        (D22, Direita) => Some(D23),
+        (D22, Esquerda) => Some(D21),
+        (D22, Baixo) => Some(D12),
+        (D22, _) => Some(D22),
 
-        (H4, Cima) => None,
-        (H4, Direita) => None,
-        (H4, Esquerda) => None,
-        (H4, Baixo) => None,
-        (H4, Pegar) => None,
+        (D23, Cima) => Some(D33),
+        (D23, Esquerda) => Some(D22),
+        (D23, Baixo) => Some(D13),
+        (D23, _) => Some(D23),
+
+        (D31, _) => None,
+
+        (D32, Direita) => Some(D33),
+        (D32, Esquerda) => Some(D31),
+        (D32, Baixo) => Some(D22),
+        (D32, _) => Some(D32),
+
+        (D33, Esquerda) => Some(D32),
+        (D33, Baixo) => Some(D23),
+        (D33, _) => Some(D33),
     }
 }
 
@@ -304,8 +250,8 @@ impl<'a> Labirinto<'a> {
         Self {
             alfabeto: HashSet::from(ALFABETO),
             estados: HashSet::from(ESTADOS),
-            inicial: Estado::A1,
-            finais: HashSet::from([Estado::E1]),
+            inicial: Estado::A11,
+            finais: HashSet::from([Estado::B11, Estado::D11]),
             transição: &transição,
         }
     }
@@ -384,7 +330,7 @@ fn get_palavra(filepath: String) -> Vec<String> {
     let mut palavra = String::new();
     let _ = file.read_to_string(&mut palavra);
     palavra
-        .split(|c: char| c.is_whitespace() || c == ',')
+        .split(|c: char| c.is_whitespace() || c == ',' )
         .filter(|c| c != &"")
         .map(|simbolo| simbolo.trim().to_owned())
         .collect()
@@ -421,13 +367,14 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use crate::{Estado, Labirinto};
+    use crate::{Labirinto, Estado};
 
     impl<'a> Labirinto<'a> {
+        
         fn new_inicial(inicial: Estado) -> Self {
             Self {
                 inicial,
-                ..Self::new()
+                .. Self::new()
             }
         }
     }
@@ -452,185 +399,25 @@ mod tests {
     }
 
     #[test]
-    fn aceita1() {
-        let palavra = "cdcpbeb";
-        should_accept(palavra, Estado::A1);
+    fn test_aceita2_mapa_acd() {
+        let inicial = Estado::A11;
+        let palavra = "dccdpebcadpacbdpacecpabcbddpaeeepadebcbdedcbcdedcbepcbdecdedbcbebcedbedecb";
+        should_accept(palavra, inicial);
     }
 
     #[test]
-    fn aceita2() {
-        let palavra = "cdddbccbeecceddebpbbe";
-        should_accept(palavra, Estado::A1);
+    fn test_todas_menos_buracos_ab() {
+        let inicial = Estado::A11;
+        let palavra = "pabedbpacepabcdedbcddpaeccbpccpabddpaeepaedbbpacbepabecb";
+        should_accept(palavra, inicial);
     }
 
     #[test]
-    fn aceita3() {
-        let palavra = "decbcdcceddebbbcddcbbceecpceddebbddcbbceebceb";
-        should_accept(palavra, Estado::A1);
+    fn test_todas_menos_buracos_abd() {
+        let inicial = Estado::A11;
+        let palavra = "cdpcdpebcaecpadbdpacebpacbdebbpaceepadebpabecbde";
+        should_accept(palavra, inicial);
     }
 
-    #[test]
-    fn aceita4() {
-        let palavra = "ebcebdbcdddcdbbdbceecccdceecedbpbbe";
-        should_accept(palavra, Estado::A1);
-    }
 
-    #[test]
-    fn aceita5() {
-        let palavra = "cdcpceecdcdcebbddcdbbbdceebbceebbe";
-        should_accept(palavra, Estado::A1);
-    }
-
-    #[test]
-    fn rejeita_sair_wumpus1() {
-        let palavra = "d";
-        let inicial = Estado::A1;
-        should_reject(palavra, inicial);
-        let palavra = "b";
-        should_reject(palavra, inicial);
-        let palavra = "c";
-        should_reject(palavra, inicial);
-        let palavra = "e";
-        should_reject(palavra, inicial);
-        let palavra = "p";
-        should_reject(palavra, inicial);
-    }
-
-    #[test]
-    fn rejeita_sair_wumpus2() {
-        let palavra = "d";
-        let inicial = Estado::A1;
-        should_reject(palavra, inicial);
-        let palavra = "b";
-        should_reject(palavra, inicial);
-        let palavra = "c";
-        should_reject(palavra, inicial);
-        let palavra = "e";
-        should_reject(palavra, inicial);
-        let palavra = "p";
-        should_reject(palavra, inicial);
-    }
-
-    // entrou no quadradinho do wumpus antes de sair
-    #[test]
-    fn rejeita_entrar_e_sair_wumpus1() {
-        let palavra = "cdpbbe";
-        let inicial = Estado::A2;
-        should_reject(palavra, inicial);
-
-        let palavra = "edpbbe";
-        let inicial = Estado::B3;
-        should_reject(palavra, inicial);
-
-        let palavra = "bdpbbe";
-        let inicial = Estado::A4;
-        should_reject(palavra, inicial);
-    }
-
-    // Encontrou o tesouro mas aentrou no quadradinho do wumpus
-
-    #[test]
-    fn rejeita_entrar_e_sair_wumpus2() {
-        let palavra = "cbb";
-        let inicial = Estado::E2;
-        should_reject(palavra, inicial);
-
-        let palavra = "ebb";
-        let inicial = Estado::F3;
-        should_reject(palavra, inicial);
-
-        let palavra = "bbb";
-        let inicial = Estado::E4;
-        should_reject(palavra, inicial);
-    }
-
-    #[test]
-    fn rejeita_buraco_c1() {
-        let palavra = "dcecpbbe";
-        let inicial = Estado::B1;
-        should_reject(palavra, inicial);
-
-        let palavra = "bcecpbbe";
-        let inicial = Estado::C2;
-        should_reject(palavra, inicial);
-
-        let palavra = "edceecpbbe";
-        let inicial = Estado::D1;
-        should_reject(palavra, inicial);
-    }
-
-    #[test]
-    fn rejeita_buraco_c3() {
-        let palavra = "depbbe";
-        let inicial = Estado::B3;
-        should_reject(palavra, inicial);
-
-        let palavra = "cbecpbbe";
-        let inicial = Estado::C2;
-        should_reject(palavra, inicial);
-
-        let palavra = "edbeecpbbe";
-        let inicial = Estado::D3;
-        should_reject(palavra, inicial);
-
-        let palavra = "bcebpbbe";
-        let inicial = Estado::C4;
-        should_reject(palavra, inicial);
-    }
-
-    #[test]
-    fn rejeita_buraco_d4() {
-        let palavra = "cbbeecpbbe";
-        let inicial = Estado::D3;
-        should_reject(palavra, inicial);
-
-        let palavra = "deebpbbe";
-        let inicial = Estado::C4;
-        should_reject(palavra, inicial);
-    }
-
-    #[test]
-    fn rejeita_buraco_g1() {
-        let palavra = "dee";
-        let inicial = Estado::F1;
-        should_reject(palavra, inicial);
-
-        let palavra = "bceeb";
-        let inicial = Estado::G2;
-        should_reject(palavra, inicial);
-
-        let palavra = "edceeeb";
-        let inicial = Estado::H1;
-        should_reject(palavra, inicial);
-    }
-
-    #[test]
-    fn rejeita_buraco_g3() {
-        let palavra = "debbe";
-        let inicial = Estado::F3;
-        should_reject(palavra, inicial);
-
-        let palavra = "cbeeb";
-        let inicial = Estado::G2;
-        should_reject(palavra, inicial);
-
-        let palavra = "edbeeeb";
-        let inicial = Estado::H3;
-        should_reject(palavra, inicial);
-
-        let palavra = "bcebbbe";
-        let inicial = Estado::G4;
-        should_reject(palavra, inicial);
-    }
-
-    #[test]
-    fn rejeita_buraco_h4() {
-        let palavra = "cbbeeeb";
-        let inicial = Estado::H3;
-        should_reject(palavra, inicial);
-
-        let palavra = "deebbbe";
-        let inicial = Estado::G4;
-        should_reject(palavra, inicial);
-    }
 }

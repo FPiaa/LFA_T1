@@ -1,40 +1,31 @@
+use std::fmt::Debug;
+use std::hash::Hash;
 use std::io::Read;
 use clap::Parser;
 use std::process;
 use std::{
     collections::HashSet,
     fs::File,
-    str::FromStr,
 };
 
-macro_rules! make_enum {
-    (
-        $name:ident $array:ident $tamanho:literal{
-            $( $variant:ident, )*
-        }
-    ) => {
-        #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-        pub enum $name {
-            $( $variant, )*
-        }
-        const $array: [$name; $tamanho] = [
-            $( $name::$variant, )*
-        ];
-    }
-}
+trait Alfabeto {}
+trait Estados {}
 
-
-make_enum!(Símbolo ALFABETO 6{
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Símbolo {
     Cima,
     Baixo,
     Esquerda,
     Direita,
     Pegar,
     Atirar,
-});
+}
+
+impl Alfabeto for Símbolo {}
 
 #[rustfmt::skip]
-make_enum!(Estado ESTADOS 36 {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Estado {
     A11, A12, A13,
     A21, A22, A23,
     A31, A32, A33,
@@ -50,13 +41,15 @@ make_enum!(Estado ESTADOS 36 {
     D11, D12, D13,
     D21, D22, D23,
     D31, D32, D33,
-});
+}
 
+impl Estados for Estado {}
 
-impl FromStr for Símbolo {
-    type Err = ();
+impl TryFrom<&str> for Símbolo
+{
+    type Error = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s.to_ascii_lowercase().as_ref() {
             "cima" | "c" => Ok(Self::Cima),
             "baixo" | "b" => Ok(Self::Baixo),
@@ -69,14 +62,13 @@ impl FromStr for Símbolo {
     }
 }
 
-type FunçãoTransição = dyn Fn(Estado, Símbolo) -> Option<Estado>;
-
-struct Labirinto<'a> {
-    alfabeto: HashSet<Símbolo>,
-    estados: HashSet<Estado>,
-    transição: &'a FunçãoTransição,
-    inicial: Estado,
-    finais: HashSet<Estado>,
+struct Labirinto<'a, T, U>
+where T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
+U: Estados +  Eq + Clone + Copy + Hash + Debug
+{
+    transição: &'a dyn Fn(U, T) -> Option<U>,
+    inicial: U,
+    finais: HashSet<U>,
 }
 
 fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
@@ -245,52 +237,57 @@ fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
     }
 }
 
-impl<'a> Labirinto<'a> {
-    fn new() -> Self {
+impl<'a, T, U> Labirinto<'a, T, U> 
+where T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
+U: Estados +  Eq + Clone + Copy + Hash + Debug
+{
+    fn new(transição: &'a dyn Fn(U, T) -> Option<U>, inicial: U, finais: &[U]) -> Self {
+        let finais = finais.iter().fold(HashSet::new(), |mut set, elem| {set.insert(*elem); set});
+
         Self {
-            alfabeto: HashSet::from(ALFABETO),
-            estados: HashSet::from(ESTADOS),
-            inicial: Estado::A11,
-            finais: HashSet::from([Estado::B11, Estado::D11]),
-            transição: &transição,
+            inicial,
+            finais,
+            transição,
         }
     }
 
-    fn read(&'a self, palavra: &'a [String]) -> LabirintoIter<'a> {
+    fn read<V: AsRef<str>>(&'a self, palavra: &'a [V]) -> LabirintoIter<'a, T, U, V> {
         LabirintoIter {
             palavra,
             estado_atual: self.inicial,
             transição: self.transição,
-            alfabeto: &self.alfabeto,
-            estados: &self.estados,
         }
     }
 }
 
-struct LabirintoIter<'a> {
-    palavra: &'a [String],
-    estado_atual: Estado,
-    transição: &'a FunçãoTransição,
-    alfabeto: &'a HashSet<Símbolo>,
-    estados: &'a HashSet<Estado>,
+struct LabirintoIter<'a, T, U, V>
+where T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
+U: Estados +  Eq + Clone + Copy + Hash + Debug,
+V: AsRef<str>
+{
+    palavra: &'a [V],
+    estado_atual: U,
+    transição: &'a dyn Fn(U, T) -> Option<U>,
 }
 
-impl<'a> Iterator for LabirintoIter<'a> {
-    type Item = Estado;
+impl<'a, T, U, V> Iterator for LabirintoIter<'a, T, U, V>
+where T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
+U: Estados +  Eq + Clone + Copy + Hash + Debug,
+V: AsRef<str>
+{
+    type Item = U;
 
     fn next(&mut self) -> Option<Self::Item> {
         let simbolo_str = self.palavra.first()?;
-        let simbolo = Símbolo::from_str(simbolo_str);
+        let simbolo = T::try_from(simbolo_str.as_ref());
 
         let simbolo = match simbolo {
             Ok(s) => s,
             Err(_) => {
-                eprintln!("O símbolo \"{simbolo_str}\" não é reconhecido pelo alfabeto (Palavra rejeitada)");
+                eprintln!("O símbolo \"{}\" não é reconhecido pelo alfabeto (Palavra rejeitada)", simbolo_str.as_ref());
                 process::exit(-1);
             }
         };
-
-        assert!(self.alfabeto.contains(&simbolo));
 
         self.palavra = &self.palavra[1..];
         let proximo = (self.transição)(self.estado_atual, simbolo);
@@ -302,8 +299,6 @@ impl<'a> Iterator for LabirintoIter<'a> {
                 return None;
             }
         };
-
-        assert!(self.estados.contains(&proximo));
 
         println!("δ({:?}, {simbolo:?}) => {proximo:?}", self.estado_atual);
 
@@ -337,7 +332,7 @@ fn get_palavra(filepath: String) -> Vec<String> {
 }
 
 fn main() {
-    let máquina = Labirinto::new();
+    let máquina = Labirinto::new(&transição, Estado::A11, &[Estado::B11, Estado::D11]);
     let args = Args::parse();
 
     let palavra = if args.filepath.is_some() {
@@ -368,34 +363,18 @@ fn main() {
 mod tests {
 
     use crate::{Labirinto, Estado};
-
-    impl<'a> Labirinto<'a> {
-        
-        fn new_inicial(inicial: Estado) -> Self {
-            Self {
-                inicial,
-                .. Self::new()
-            }
-        }
-    }
+    use super::*;
     fn split_input(s: &str) -> Vec<String> {
         s.chars().map(|c| c.to_string()).collect()
     }
 
     fn should_accept(palavra: &str, inicial: Estado) {
         let palavra = split_input(palavra);
-        let maquina = Labirinto::new_inicial(inicial);
 
-        let estado_final = maquina.read(&palavra).last().unwrap();
-        assert!(maquina.finais.contains(&estado_final));
-    }
+        let máquina = Labirinto::new(&transição, inicial, &[Estado::B11, Estado::D11]);
 
-    fn should_reject(palavra: &str, inicial: Estado) {
-        let palavra = split_input(palavra);
-        let maquina = Labirinto::new_inicial(inicial);
-
-        let estado_final = maquina.read(&palavra).last().unwrap();
-        assert!(!maquina.finais.contains(&estado_final));
+        let estado_final = máquina.read(&palavra).last().unwrap();
+        assert!(máquina.finais.contains(&estado_final));
     }
 
     #[test]

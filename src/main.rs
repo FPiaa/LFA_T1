@@ -1,12 +1,9 @@
+use clap::Parser;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::io::Read;
-use clap::Parser;
 use std::process;
-use std::{
-    collections::HashSet,
-    fs::File,
-};
+use std::{collections::HashSet, fs::File};
 
 trait Alfabeto {}
 trait Estados {}
@@ -23,30 +20,49 @@ enum Símbolo {
 
 impl Alfabeto for Símbolo {}
 
-#[rustfmt::skip]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Estado {
-    A11, A12, A13,
-    A21, A22, A23,
-    A31, A32, A33,
-    
-    B11, B12, B13,
-    B21, B22, B23,
-    B31, B32, B33,
-
-    C11, C12, C13,
-    C21, C22, C23,
-    C31, C32, C33,
-    
-    D11, D12, D13,
-    D21, D22, D23,
-    D31, D32, D33,
+    A11,
+    A12,
+    A13,
+    A21,
+    A22,
+    A23,
+    A31,
+    A32,
+    A33,
+    B11,
+    B12,
+    B13,
+    B21,
+    B22,
+    B23,
+    B31,
+    B32,
+    B33,
+    C11,
+    C12,
+    C13,
+    C21,
+    C22,
+    C23,
+    C31,
+    C32,
+    C33,
+    D11,
+    D12,
+    D13,
+    D21,
+    D22,
+    D23,
+    D31,
+    D32,
+    D33,
 }
 
 impl Estados for Estado {}
 
-impl TryFrom<&str> for Símbolo
-{
+impl TryFrom<&str> for Símbolo {
     type Error = ();
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
@@ -63,8 +79,9 @@ impl TryFrom<&str> for Símbolo
 }
 
 struct Labirinto<'a, T, U>
-where T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
-U: Estados +  Eq + Clone + Copy + Hash + Debug
+where
+    T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
+    U: Estados + Eq + Clone + Copy + Hash + Debug,
 {
     transição: &'a dyn Fn(U, T) -> Option<U>,
     inicial: U,
@@ -90,7 +107,7 @@ fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
         (A12, Cima) => Some(A22),
         (A12, Direita) => Some(A13),
         (A12, Esquerda) => Some(A11),
-        (A12, _) => Some(A12), 
+        (A12, _) => Some(A12),
 
         (A13, _) => None,
 
@@ -128,7 +145,7 @@ fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
         (B12, Cima) => Some(B22),
         (B12, Direita) => Some(B13),
         (B12, Esquerda) => Some(B11),
-        (B12, _) => Some(B12), 
+        (B12, _) => Some(B12),
 
         (B13, _) => None,
 
@@ -165,7 +182,7 @@ fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
         (C12, Cima) => Some(C22),
         (C12, Direita) => Some(C13),
         (C12, Esquerda) => Some(C11),
-        (C12, _) => Some(C12), 
+        (C12, _) => Some(C12),
 
         (C13, _) => None,
 
@@ -196,7 +213,7 @@ fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
         (C33, Esquerda) => Some(C32),
         (C33, Baixo) => Some(C23),
         (C33, _) => Some(C33),
-        
+
         (D11, Cima) => Some(D21),
         (D11, Direita) => Some(D12),
         (D11, _) => Some(D11),
@@ -204,7 +221,7 @@ fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
         (D12, Cima) => Some(D22),
         (D12, Direita) => Some(D13),
         (D12, Esquerda) => Some(D11),
-        (D12, _) => Some(D12), 
+        (D12, _) => Some(D12),
 
         (D13, _) => None,
 
@@ -237,12 +254,16 @@ fn transição(estado_atual: Estado, simbolo: Símbolo) -> Option<Estado> {
     }
 }
 
-impl<'a, T, U> Labirinto<'a, T, U> 
-where T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
-U: Estados +  Eq + Clone + Copy + Hash + Debug
+impl<'a, T, U> Labirinto<'a, T, U>
+where
+    T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
+    U: Estados + Eq + Clone + Copy + Hash + Debug,
 {
     fn new(transição: &'a dyn Fn(U, T) -> Option<U>, inicial: U, finais: &[U]) -> Self {
-        let finais = finais.iter().fold(HashSet::new(), |mut set, elem| {set.insert(*elem); set});
+        let finais = finais.iter().fold(HashSet::new(), |mut set, elem| {
+            set.insert(*elem);
+            set
+        });
 
         Self {
             inicial,
@@ -261,9 +282,10 @@ U: Estados +  Eq + Clone + Copy + Hash + Debug
 }
 
 struct LabirintoIter<'a, T, U, V>
-where T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
-U: Estados +  Eq + Clone + Copy + Hash + Debug,
-V: AsRef<str>
+where
+    T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
+    U: Estados + Eq + Clone + Copy + Hash + Debug,
+    V: AsRef<str>,
 {
     palavra: &'a [V],
     estado_atual: U,
@@ -271,9 +293,10 @@ V: AsRef<str>
 }
 
 impl<'a, T, U, V> Iterator for LabirintoIter<'a, T, U, V>
-where T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
-U: Estados +  Eq + Clone + Copy + Hash + Debug,
-V: AsRef<str>
+where
+    T: Alfabeto + TryFrom<&'a str> + Clone + Copy + Debug,
+    U: Estados + Eq + Clone + Copy + Hash + Debug,
+    V: AsRef<str>,
 {
     type Item = U;
 
@@ -284,7 +307,10 @@ V: AsRef<str>
         let simbolo = match simbolo {
             Ok(s) => s,
             Err(_) => {
-                eprintln!("O símbolo \"{}\" não é reconhecido pelo alfabeto (Palavra rejeitada)", simbolo_str.as_ref());
+                eprintln!(
+                    "O símbolo \"{}\" não é reconhecido pelo alfabeto (Palavra rejeitada)",
+                    simbolo_str.as_ref()
+                );
                 process::exit(-1);
             }
         };
@@ -325,7 +351,7 @@ fn get_palavra(filepath: String) -> Vec<String> {
     let mut palavra = String::new();
     let _ = file.read_to_string(&mut palavra);
     palavra
-        .split(|c: char| c.is_whitespace() || c == ',' )
+        .split(|c: char| c.is_whitespace() || c == ',')
         .filter(|c| c != &"")
         .map(|simbolo| simbolo.trim().to_owned())
         .collect()
@@ -338,7 +364,7 @@ fn main() {
     let palavra = if args.filepath.is_some() {
         get_palavra(args.filepath.unwrap())
     } else {
-        ["c", "c", "c", "c", "d", "d", "d", "d"]
+        ["c", "d", "p", "b", "e"]
             .iter()
             .map(|&c| c.to_owned())
             .collect()
@@ -362,8 +388,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use crate::{Labirinto, Estado};
     use super::*;
+    use crate::{Estado, Labirinto};
     fn split_input(s: &str) -> Vec<String> {
         s.chars().map(|c| c.to_string()).collect()
     }
@@ -397,6 +423,4 @@ mod tests {
         let palavra = "cdpcdpebcaecpadbdpacebpacbdebbpaceepadebpabecbde";
         should_accept(palavra, inicial);
     }
-
-
 }

@@ -1,1 +1,1 @@
-cima, direita, cima, pegar, baixo, baixo, esquerda
+ d c c d p e b c a d p a c b d p a c e c p a b c b d d p a e e e p a d e b c b d e d c b c d e d c b e p c b d e c d e d b c b e b c e d b e d e c b
